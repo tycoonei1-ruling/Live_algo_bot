@@ -1,4 +1,6 @@
 import time
+from datetime import datetime
+import pytz
 
 from strategy import check_signals
 from option_chain import analyze_option_chain
@@ -8,22 +10,48 @@ from tg_sender import send
 
 print("Trading Alert Bot Started")
 
-# Send startup message to Telegram
 send("🚀 Trading Alert Bot Started Successfully")
+
+
+# India timezone
+ist = pytz.timezone("Asia/Kolkata")
 
 
 while True:
 
     try:
 
-        # Run strategy alerts
-        check_signals()
+        now = datetime.now(ist)
 
-        # Run option chain analyzer
-        analyze_option_chain()
+        current_time = now.time()
 
-        # Run OI change detector
-        detect_oi_change()
+        market_open = now.replace(hour=9, minute=15, second=0).time()
+        market_close = now.replace(hour=15, minute=30, second=0).time()
+
+
+        # ==========================
+        # MARKET HOURS CHECK
+        # ==========================
+
+        if market_open <= current_time <= market_close:
+
+            print("Market Open - Running Bot")
+
+            check_signals()
+
+            analyze_option_chain()
+
+            detect_oi_change()
+
+            time.sleep(60)
+
+
+        else:
+
+            print("Market Closed - Sleeping")
+
+            time.sleep(300)
+
 
     except Exception as e:
 
@@ -31,5 +59,4 @@ while True:
 
         send(f"⚠️ Bot Error\n{e}")
 
-    # wait before next cycle
-    time.sleep(60)
+        time.sleep(60)
