@@ -12,9 +12,11 @@ print("Trading Alert Bot Started")
 
 send("🚀 Trading Alert Bot Started Successfully")
 
-
 # India timezone
 ist = pytz.timezone("Asia/Kolkata")
+
+# prevent error spam
+last_error = None
 
 
 while True:
@@ -25,8 +27,8 @@ while True:
 
         current_time = now.time()
 
-        market_open = now.replace(hour=9, minute=15, second=0).time()
-        market_close = now.replace(hour=15, minute=30, second=0).time()
+        market_open = datetime.strptime("09:15", "%H:%M").time()
+        market_close = datetime.strptime("15:30", "%H:%M").time()
 
 
         # ==========================
@@ -55,8 +57,15 @@ while True:
 
     except Exception as e:
 
-        print("Error:", e)
+        error_msg = str(e)
 
-        send(f"⚠️ Bot Error\n{e}")
+        print("Error:", error_msg)
+
+        # Send error only if new
+        if error_msg != last_error:
+
+            send(f"⚠️ Bot Error\n{error_msg}")
+
+            last_error = error_msg
 
         time.sleep(60)
