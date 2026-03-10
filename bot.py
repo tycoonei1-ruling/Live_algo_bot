@@ -50,7 +50,7 @@ while True:
 
             print("Market Closed - Sleeping")
 
-            time.sleep(300)
+            time.sleep(900)
 
 
     except Exception as e:
