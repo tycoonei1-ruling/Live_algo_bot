@@ -1,6 +1,5 @@
 from indicators import get_data, calculate_indicators, calculate_camarilla
 from tg_sender import send
-from options_intelligence import options_intelligence
 
 base_price = None
 triggered_signals = set()
@@ -87,7 +86,6 @@ def check_signals(records=None):
     bb_middle = last["bb_middle"]
     bb_lower = last["bb_lower"]
 
-    options_intelligence(price, macd, signal, pivot, bb_upper, bb_lower, records)
 
     # ==========================
     # MARKET STATUS DASHBOARD
