@@ -2,11 +2,11 @@ from nsepython import *
 from tg_sender import send
 
 
-def analyze_option_chain():
+def analyze_option_chain(records=None):
 
-    data = nse_optionchain_scrapper("NIFTY")
-
-    records = data['records']['data']
+    if records is None:
+        data = nse_optionchain_scrapper("NIFTY")
+        records = data['records']['data']
 
     call_oi = {}
     put_oi = {}

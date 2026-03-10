@@ -39,11 +39,19 @@ while True:
 
             print("Market Open - Running Bot")
 
-            check_signals()
+            try:
+                from nsepython import nse_optionchain_scrapper
+                data = nse_optionchain_scrapper("NIFTY")
+                records = data['records']['data']
+            except Exception as e:
+                print(f"Error fetching option chain: {e}")
+                records = None
 
-            analyze_option_chain()
+            check_signals(records)
 
-            detect_oi_change()
+            if records is not None:
+                analyze_option_chain(records)
+                detect_oi_change(records)
 
             time.sleep(60)
 

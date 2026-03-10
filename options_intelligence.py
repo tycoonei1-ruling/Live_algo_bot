@@ -2,7 +2,7 @@ from nsepython import *
 from tg_sender import send
 
 
-def options_intelligence(price, macd, signal, pivot, bb_upper, bb_lower):
+def options_intelligence(price, macd, signal, pivot, bb_upper, bb_lower, records=None):
 
     # ======================
     # FIND ATM STRIKE
@@ -15,9 +15,9 @@ def options_intelligence(price, macd, signal, pivot, bb_upper, bb_lower):
     # GET OPTION CHAIN
     # ======================
 
-    data = nse_optionchain_scrapper("NIFTY")
-
-    records = data['records']['data']
+    if records is None:
+        data = nse_optionchain_scrapper("NIFTY")
+        records = data['records']['data']
 
     call_oi = {}
     put_oi = {}

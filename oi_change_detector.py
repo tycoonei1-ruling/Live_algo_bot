@@ -4,13 +4,13 @@ from tg_sender import send
 previous_oi = {}
 
 
-def detect_oi_change():
+def detect_oi_change(records=None):
 
     global previous_oi
 
-    data = nse_optionchain_scrapper("NIFTY")
-
-    records = data['records']['data']
+    if records is None:
+        data = nse_optionchain_scrapper("NIFTY")
+        records = data['records']['data']
 
     signals = []
 
