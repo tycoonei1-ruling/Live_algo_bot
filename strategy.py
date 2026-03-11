@@ -16,7 +16,31 @@ from datetime import datetime
 orb_high = None
 orb_low = None
 orb_set = False
-last_status_time = None
+
+def check_signals():
+
+    global base_price
+
+    df = get_data()
+    df = calculate_indicators(df)
+
+    pivot,r1,r2,r3,r4,s1,s2,s3,s4 = calculate_camarilla()
+
+    last = df.iloc[-1]
+    prev = df.iloc[-2]
+
+    price = last["Close"]
+
+    macd = last["macd"]
+    signal = last["macd_signal"]
+
+    bb_upper = last["bb_upper"]
+    bb_middle = last["bb_middle"]
+    bb_lower = last["bb_lower"]
+
+    
+
+from datetime import datetime
 
 def market_status(price, macd, signal, bb_upper, bb_lower,
                   r1,r2,r3,r4,s1,s2,s3,s4):
@@ -64,28 +88,6 @@ def market_status(price, macd, signal, bb_upper, bb_lower,
         trend = "Sideways"
 
     return trend, macd_trend, pivot_zone, bb_status
-
-def check_signals(records=None):
-
-    global base_price
-
-    df = get_data()
-    df = calculate_indicators(df)
-
-    pivot,r1,r2,r3,r4,s1,s2,s3,s4 = calculate_camarilla()
-
-    last = df.iloc[-1]
-    prev = df.iloc[-2]
-
-    price = last["Close"]
-
-    macd = last["macd"]
-    signal = last["macd_signal"]
-
-    bb_upper = last["bb_upper"]
-    bb_middle = last["bb_middle"]
-    bb_lower = last["bb_lower"]
-
 
     # ==========================
     # MARKET STATUS DASHBOARD
