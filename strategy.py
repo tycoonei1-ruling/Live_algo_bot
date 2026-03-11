@@ -1,8 +1,15 @@
 from indicators import get_data, calculate_indicators, calculate_camarilla
 from tg_sender import send
+from datetime import datetime
 
 base_price = None
 triggered_signals = set()
+
+orb_high = None
+orb_low = None
+orb_set = False
+
+last_status_time = None
 
 
 def alert_once(signal_id, message):
@@ -11,45 +18,12 @@ def alert_once(signal_id, message):
         send(message)
         triggered_signals.add(signal_id)
 
-from datetime import datetime
-
-orb_high = None
-orb_low = None
-orb_set = False
-
-def check_signals():
-
-    global base_price
-
-    df = get_data()
-    df = calculate_indicators(df)
-
-    pivot,r1,r2,r3,r4,s1,s2,s3,s4 = calculate_camarilla()
-
-    last = df.iloc[-1]
-    prev = df.iloc[-2]
-
-    price = last["Close"]
-
-    macd = last["macd"]
-    signal = last["macd_signal"]
-
-    bb_upper = last["bb_upper"]
-    bb_middle = last["bb_middle"]
-    bb_lower = last["bb_lower"]
-
-    
-
-from datetime import datetime
 
 def market_status(price, macd, signal, bb_upper, bb_lower,
                   r1,r2,r3,r4,s1,s2,s3,s4):
 
     # MACD trend
-    if macd > signal:
-        macd_trend = "Bullish"
-    else:
-        macd_trend = "Bearish"
+    macd_trend = "Bullish" if macd > signal else "Bearish"
 
     # Bollinger status
     if price > bb_upper:
@@ -89,11 +63,32 @@ def market_status(price, macd, signal, bb_upper, bb_lower,
 
     return trend, macd_trend, pivot_zone, bb_status
 
+
+def check_signals():
+
+    global base_price, orb_high, orb_low, orb_set, last_status_time
+
+    df = get_data()
+    df = calculate_indicators(df)
+
+    pivot,r1,r2,r3,r4,s1,s2,s3,s4 = calculate_camarilla()
+
+    last = df.iloc[-1]
+    prev = df.iloc[-2]
+
+    price = last["Close"]
+
+    macd = last["macd"]
+    signal = last["macd_signal"]
+
+    bb_upper = last["bb_upper"]
+    bb_middle = last["bb_middle"]
+    bb_lower = last["bb_lower"]
+
+
     # ==========================
     # MARKET STATUS DASHBOARD
     # ==========================
-
-    global last_status_time
 
     now = datetime.now()
 
@@ -105,66 +100,64 @@ def market_status(price, macd, signal, bb_upper, bb_lower,
         )
 
         send(f"""
-    📊 NIFTY MARKET STATUS
+📊 NIFTY MARKET STATUS
 
-    Price : {round(price,2)}
-    Trend : {trend}
+Price : {round(price,2)}
+Trend : {trend}
 
-    MACD : {macd_trend}
-    Pivot Zone : {pivot_zone}
-    Bollinger : {bb_status}
-    """)
+MACD : {macd_trend}
+Pivot Zone : {pivot_zone}
+Bollinger : {bb_status}
+""")
 
         last_status_time = now
 
+
     # ==========================
-    # PROFESSIONAL 50 POINT TRACKER
+    # 50 POINT TRACKER
     # ==========================
 
     if base_price is None:
+
         base_price = round(price / 50) * 50
+
         send(f"""
-    📊 BOT STARTED
+📊 BOT STARTED
 
-    Starting Level : {base_price}
-    Current Price : {round(price,2)}
-    """)
+Starting Level : {base_price}
+Current Price : {round(price,2)}
+""")
 
 
-    # MARKET MOVING UP
     while price >= base_price + 50:
 
         base_price += 50
 
         send(f"""
-    🚀 NIFTY MOVED UP 50 POINTS
+🚀 NIFTY MOVED UP 50 POINTS
 
-    New Level : {base_price}
-    Current Price : {round(price,2)}
-    """)
+New Level : {base_price}
+Current Price : {round(price,2)}
+""")
 
 
-    # MARKET MOVING DOWN
     while price <= base_price - 50:
 
         base_price -= 50
 
         send(f"""
-    📉 NIFTY MOVED DOWN 50 POINTS
+📉 NIFTY MOVED DOWN 50 POINTS
 
-    New Level : {base_price}
-    Current Price : {round(price,2)}
-    """)
+New Level : {base_price}
+Current Price : {round(price,2)}
+""")
+
 
     # ==========================
     # OPENING RANGE BREAKOUT
     # ==========================
 
-    global orb_high, orb_low, orb_set
-
     now = datetime.now()
-
-    # Capture opening range (9:15–9:30)
 
     if now.hour == 9 and now.minute < 30:
 
@@ -175,35 +168,28 @@ def market_status(price, macd, signal, bb_upper, bb_lower,
             orb_low = price
 
 
-    # Lock the range at 9:30
-
     if now.hour == 9 and now.minute >= 30 and not orb_set:
 
         orb_set = True
 
         send(f"""
-    📊 OPENING RANGE SET
+📊 OPENING RANGE SET
 
-    ORB High : {round(orb_high,2)}
-    ORB Low : {round(orb_low,2)}
-    """)
+ORB High : {round(orb_high,2)}
+ORB Low : {round(orb_low,2)}
+""")
 
-
-
-    # Breakout detection
 
     if orb_set:
 
         if price > orb_high:
 
             send(f"""
-    🚀 ORB BREAKOUT
+🚀 ORB BREAKOUT
 
-    Price broke above opening range
-
-    Price : {round(price,2)}
-    ORB High : {round(orb_high,2)}
-    """)
+Price : {round(price,2)}
+ORB High : {round(orb_high,2)}
+""")
 
             orb_set = False
 
@@ -211,18 +197,17 @@ def market_status(price, macd, signal, bb_upper, bb_lower,
         if price < orb_low:
 
             send(f"""
-    📉 ORB BREAKDOWN
+📉 ORB BREAKDOWN
 
-    Price broke below opening range
-
-    Price : {round(price,2)}
-    ORB Low : {round(orb_low,2)}
-    """)
+Price : {round(price,2)}
+ORB Low : {round(orb_low,2)}
+""")
 
             orb_set = False
 
+
     # ==========================
-    # CAMARILLA RESISTANCE
+    # CAMARILLA LEVEL ALERTS
     # ==========================
 
     if prev["Close"] < r1 and price > r1:
@@ -237,10 +222,6 @@ def market_status(price, macd, signal, bb_upper, bb_lower,
     if prev["Close"] < r4 and price > r4:
         alert_once("R4", f"🔥 NIFTY crossed R4 : {r4}")
 
-
-    # ==========================
-    # CAMARILLA SUPPORT
-    # ==========================
 
     if prev["Close"] > s1 and price < s1:
         alert_once("S1", f"⚡ NIFTY crossed S1 : {s1}")
@@ -278,7 +259,7 @@ def market_status(price, macd, signal, bb_upper, bb_lower,
 
     if price > bb_middle:
         alert_once("BB_MIDDLE",
-                   f"📉 Bollinger Middle Break\nPrice : {round(price,2)}")             
+                   f"📊 Bollinger Middle Break\nPrice : {round(price,2)}")
 
     if price < bb_lower:
         alert_once("BB_LOWER",
@@ -296,40 +277,3 @@ def market_status(price, macd, signal, bb_upper, bb_lower,
     if price < s3 and macd < signal and price < bb_lower:
         alert_once("BEAR_CONFIRM",
                    f"💥 STRONG BEARISH CONFIRMATION\nPrice : {round(price,2)}")
-
-    # ==========================
-    # OPTIONS MOMENTUM DETECTION
-    # ==========================
-
-    # CALL SIDE MOMENTUM
-
-    if price > r3 and macd > signal and price > bb_upper:
-
-        send(f"""
-    🚀 CALL SIDE MOMENTUM
-
-    NIFTY ABOVE R3
-    MACD BULLISH
-    BOLLINGER BREAKOUT
-
-    Price : {round(price,2)}
-
-    Possible CE Momentum
-    """)
-
-
-    # PUT SIDE MOMENTUM
-
-    if price < s3 and macd < signal and price < bb_lower:
-
-        send(f"""
-    📉 PUT SIDE MOMENTUM
-
-    NIFTY BELOW S3
-    MACD BEARISH
-    BOLLINGER BREAKDOWN
-
-    Price : {round(price,2)}
-
-    Possible PE Momentum
-    """)
