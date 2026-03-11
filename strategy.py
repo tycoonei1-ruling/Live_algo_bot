@@ -153,58 +153,7 @@ Current Price : {round(price,2)}
 """)
 
 
-    # ==========================
-    # OPENING RANGE BREAKOUT
-    # ==========================
-
-    now = datetime.now()
-
-    if now.hour == 9 and now.minute < 30:
-
-        if orb_high is None or price > orb_high:
-            orb_high = price
-
-        if orb_low is None or price < orb_low:
-            orb_low = price
-
-
-    if now.hour == 9 and now.minute >= 30 and not orb_set:
-
-        orb_set = True
-
-        send(f"""
-📊 OPENING RANGE SET
-
-ORB High : {round(orb_high,2)}
-ORB Low : {round(orb_low,2)}
-""")
-
-
-    if orb_set:
-
-        if price > orb_high:
-
-            send(f"""
-🚀 ORB BREAKOUT
-
-Price : {round(price,2)}
-ORB High : {round(orb_high,2)}
-""")
-
-            orb_set = False
-
-
-        if price < orb_low:
-
-            send(f"""
-📉 ORB BREAKDOWN
-
-Price : {round(price,2)}
-ORB Low : {round(orb_low,2)}
-""")
-
-            orb_set = False
-
+    
 
     # ==========================
     # CAMARILLA LEVEL ALERTS
