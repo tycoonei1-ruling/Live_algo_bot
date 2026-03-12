@@ -92,7 +92,7 @@ def check_signals():
 
     now = datetime.now()
 
-    if last_status_time is None or (now - last_status_time).seconds > 300:
+    if last_status_time is None or (now - last_status_time).seconds > 3000:
 
         trend, macd_trend, pivot_zone, bb_status = market_status(
             price, macd, signal, bb_upper, bb_lower,
@@ -159,31 +159,64 @@ Current Price : {round(price,2)}
     # CAMARILLA LEVEL ALERTS
     # ==========================
 
-    if prev["Close"] < r1 and price > r1:
-        alert_once("R1", f"⚡ NIFTY crossed R1 : {r1}")
+    # -------- RESISTANCE --------
 
-    if prev["Close"] < r2 and price > r2:
-        alert_once("R2", f"⚡ NIFTY crossed R2 : {r2}")
+    if prev["Close"] <= r1 and price >= r1:
+        alert_once("R1_UP", f"🚀 NIFTY crossed above R1 : {r1}")
 
-    if prev["Close"] < r3 and price > r3:
-        alert_once("R3", f"🚀 NIFTY crossed R3 : {r3}")
-
-    if prev["Close"] < r4 and price > r4:
-        alert_once("R4", f"🔥 NIFTY crossed R4 : {r4}")
+    if prev["Close"] >= r1 and price <= r1:
+        alert_once("R1_DOWN", f"⚠️ NIFTY rejected from R1 : {r1}")
 
 
-    if prev["Close"] > s1 and price < s1:
-        alert_once("S1", f"⚡ NIFTY crossed S1 : {s1}")
+    if prev["Close"] <= r2 and price >= r2:
+        alert_once("R2_UP", f"🚀 NIFTY crossed above R2 : {r2}")
 
-    if prev["Close"] > s2 and price < s2:
-        alert_once("S2", f"⚡ NIFTY crossed S2 : {s2}")
+    if prev["Close"] >= r2 and price <= r2:
+        alert_once("R2_DOWN", f"⚠️ NIFTY rejected from R2 : {r2}")
 
-    if prev["Close"] > s3 and price < s3:
-        alert_once("S3", f"📉 NIFTY crossed S3 : {s3}")
 
-    if prev["Close"] > s4 and price < s4:
-        alert_once("S4", f"💥 NIFTY crossed S4 : {s4}")
+    if prev["Close"] <= r3 and price >= r3:
+        alert_once("R3_UP", f"🔥 NIFTY breakout above R3 : {r3}")
 
+    if prev["Close"] >= r3 and price <= r3:
+        alert_once("R3_DOWN", f"⚠️ NIFTY failed at R3 : {r3}")
+
+
+    if prev["Close"] <= r4 and price >= r4:
+        alert_once("R4_UP", f"🔥 STRONG BREAKOUT above R4 : {r4}")
+
+    if prev["Close"] >= r4 and price <= r4:
+        alert_once("R4_DOWN", f"⚠️ NIFTY rejected from R4 : {r4}")
+
+
+    # -------- SUPPORT --------
+
+    if prev["Close"] >= s1 and price <= s1:
+        alert_once("S1_DOWN", f"📉 NIFTY broke below S1 : {s1}")
+
+    if prev["Close"] <= s1 and price >= s1:
+        alert_once("S1_UP", f"📈 NIFTY recovered above S1 : {s1}")
+
+
+    if prev["Close"] >= s2 and price <= s2:
+        alert_once("S2_DOWN", f"📉 NIFTY broke below S2 : {s2}")
+
+    if prev["Close"] <= s2 and price >= s2:
+        alert_once("S2_UP", f"📈 NIFTY recovered above S2 : {s2}")
+
+
+    if prev["Close"] >= s3 and price <= s3:
+        alert_once("S3_DOWN", f"💥 NIFTY breakdown below S3 : {s3}")
+
+    if prev["Close"] <= s3 and price >= s3:
+        alert_once("S3_UP", f"🚀 NIFTY bounced above S3 : {s3}")
+
+
+    if prev["Close"] >= s4 and price <= s4:
+        alert_once("S4_DOWN", f"💥 CRASH below S4 : {s4}")
+
+    if prev["Close"] <= s4 and price >= s4:
+        alert_once("S4_UP", f"🚀 STRONG BOUNCE above S4 : {s4}")
 
     # ==========================
     # MACD CROSSOVER
