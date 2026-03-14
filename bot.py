@@ -7,6 +7,7 @@ from strategy import check_signals
 from tg_sender import send
 
 
+
 print("Trading Alert Bot Started")
 send("🚀 Bot Is Ready")
 
