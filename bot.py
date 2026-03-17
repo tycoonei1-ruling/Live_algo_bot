@@ -32,39 +32,52 @@ usdinr_base = None
 # GLOBAL ASSETS SNAPSHOT
 # ==============================
 
+def safe_fetch(symbol):
+
+    try:
+        df = yf.download(symbol, period="2d", interval="1d", progress=False)
+
+        if df is None or df.empty:
+            return None, None
+
+        if hasattr(df.columns, "levels"):
+            df.columns = df.columns.get_level_values(0)
+
+        val = round(df["Close"].iloc[-1], 2)
+        chg = round(df["Close"].iloc[-1] - df["Close"].iloc[-2], 2)
+
+        return val, chg
+
+    except:
+        return None, None
+
+
 def global_assets_status():
 
     try:
-        gold = yf.download("GC=F", period="2d", interval="1d", progress=False)
-        silver = yf.download("SI=F", period="2d", interval="1d", progress=False)
-        dxy = yf.download("DX-Y.NYB", period="2d", interval="1d", progress=False)
-        inr = yf.download("USDINR=X", period="2d", interval="1d", progress=False)
 
-        for df in [gold,silver,dxy,inr]:
-            if hasattr(df.columns,"levels"):
-                df.columns = df.columns.get_level_values(0)
+        g_v, g_c = safe_fetch("GC=F")
+        s_v, s_c = safe_fetch("SI=F")
+        d_v, d_c = safe_fetch("DX-Y.NYB")
+        i_v, i_c = safe_fetch("USDINR=X")
 
-        def val(df):
-            return round(df["Close"].iloc[-1],2), round(df["Close"].iloc[-1]-df["Close"].iloc[-2],2)
-
-        g_v,g_c = val(gold)
-        s_v,s_c = val(silver)
-        d_v,d_c = val(dxy)
-        i_v,i_c = val(inr)
-
-        e = lambda x: "🟢" if x>0 else "🔴"
+        def fmt(name, v, c):
+            if v is None:
+                return f"{name} : NA"
+            e = "🟢" if c > 0 else "🔴"
+            return f"{name} : {v} {e} ({c})"
 
         return f"""
-🪙 GOLD : {g_v} {e(g_c)} ({g_c})
-🪙 SILVER : {s_v} {e(s_c)} ({s_c})
+🪙 {fmt("GOLD", g_v, g_c)}
+🪙 {fmt("SILVER", s_v, s_c)}
 
-💵 DXY : {d_v} {e(d_c)} ({d_c})
-💱 USDINR : {i_v} {e(i_c)} ({i_c})
+💵 {fmt("DXY", d_v, d_c)}
+💱 {fmt("USDINR", i_v, i_c)}
 """
 
-    except:
+    except Exception as e:
+        print("Global Assets Error:", e)
         return "Global data unavailable"
-
 
 # ==============================
 # VIX ALERT
