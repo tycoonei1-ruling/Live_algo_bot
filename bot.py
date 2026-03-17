@@ -6,8 +6,6 @@ import yfinance as yf
 from strategy import check_signals
 from tg_sender import send
 
-
-
 print("Trading Alert Bot Started")
 send("🚀 Bot Is Ready")
 
@@ -19,227 +17,206 @@ last_error = None
 # prevent duplicate alerts
 morning_sent = False
 europe_sent = False
-us_close_sent = False
+india_close_sent = False
 last_reset_day = None
+
+# trackers
+vix_base = None
+gold_base = None
+silver_base = None
+dxy_base = None
+usdinr_base = None
 
 
 # ==============================
-# GLOBAL MARKET STATUS
+# GLOBAL ASSETS SNAPSHOT
+# ==============================
+
+def global_assets_status():
+
+    try:
+        gold = yf.download("GC=F", period="2d", interval="1d", progress=False)
+        silver = yf.download("SI=F", period="2d", interval="1d", progress=False)
+        dxy = yf.download("DX-Y.NYB", period="2d", interval="1d", progress=False)
+        inr = yf.download("USDINR=X", period="2d", interval="1d", progress=False)
+
+        for df in [gold,silver,dxy,inr]:
+            if hasattr(df.columns,"levels"):
+                df.columns = df.columns.get_level_values(0)
+
+        def val(df):
+            return round(df["Close"].iloc[-1],2), round(df["Close"].iloc[-1]-df["Close"].iloc[-2],2)
+
+        g_v,g_c = val(gold)
+        s_v,s_c = val(silver)
+        d_v,d_c = val(dxy)
+        i_v,i_c = val(inr)
+
+        e = lambda x: "🟢" if x>0 else "🔴"
+
+        return f"""
+🪙 GOLD : {g_v} {e(g_c)} ({g_c})
+🪙 SILVER : {s_v} {e(s_c)} ({s_c})
+
+💵 DXY : {d_v} {e(d_c)} ({d_c})
+💱 USDINR : {i_v} {e(i_c)} ({i_c})
+"""
+
+    except:
+        return "Global data unavailable"
+
+
+# ==============================
+# VIX ALERT
+# ==============================
+
+def india_vix_monitor():
+    global vix_base
+
+    try:
+        df = yf.download("^INDIAVIX", interval="5m", period="1d", progress=False)
+        if hasattr(df.columns,"levels"):
+            df.columns = df.columns.get_level_values(0)
+
+        price = float(df.iloc[-1]["Close"])
+
+        if vix_base is None:
+            vix_base = price
+            return
+
+        change = ((price - vix_base)/vix_base)*100
+
+        if abs(change) >= 1:
+            send(f"⚡ VIX ALERT\n{round(price,2)} ({round(change,2)}%)")
+            vix_base = price
+
+    except:
+        pass
+
+
+# ==============================
+# GOLD / SILVER ALERT
+# ==============================
+
+def gold_silver_monitor():
+    global gold_base, silver_base
+
+    try:
+        gold = yf.download("GC=F", interval="5m", period="1d", progress=False)
+        silver = yf.download("SI=F", interval="5m", period="1d", progress=False)
+
+        for df in [gold,silver]:
+            if hasattr(df.columns,"levels"):
+                df.columns = df.columns.get_level_values(0)
+
+        g = float(gold.iloc[-1]["Close"])
+        s = float(silver.iloc[-1]["Close"])
+
+        if gold_base is None: gold_base = g
+        if silver_base is None: silver_base = s
+
+        g_ch = ((g - gold_base)/gold_base)*100
+        s_ch = ((s - silver_base)/silver_base)*100
+
+        if abs(g_ch) >= 0.5:
+            send(f"🪙 GOLD ALERT\n{round(g,2)} ({round(g_ch,2)}%)")
+            gold_base = g
+
+        if abs(s_ch) >= 1:
+            send(f"🪙 SILVER ALERT\n{round(s,2)} ({round(s_ch,2)}%)")
+            silver_base = s
+
+    except:
+        pass
+
+
+# ==============================
+# DXY / USDINR ALERT
+# ==============================
+
+def currency_monitor():
+    global dxy_base, usdinr_base
+
+    try:
+        dxy = yf.download("DX-Y.NYB", interval="5m", period="1d", progress=False)
+        inr = yf.download("USDINR=X", interval="5m", period="1d", progress=False)
+
+        for df in [dxy,inr]:
+            if hasattr(df.columns,"levels"):
+                df.columns = df.columns.get_level_values(0)
+
+        d = float(dxy.iloc[-1]["Close"])
+        i = float(inr.iloc[-1]["Close"])
+
+        if dxy_base is None: dxy_base = d
+        if usdinr_base is None: usdinr_base = i
+
+        d_ch = ((d - dxy_base)/dxy_base)*100
+        i_ch = ((i - usdinr_base)/usdinr_base)*100
+
+        if abs(d_ch) >= 0.5:
+            send(f"💵 DXY ALERT\n{round(d,2)} ({round(d_ch,2)}%)")
+            dxy_base = d
+
+        if abs(i_ch) >= 0.5:
+            send(f"💱 USDINR ALERT\n{round(i,2)} ({round(i_ch,2)}%)")
+            usdinr_base = i
+
+    except:
+        pass
+
+
+# ==============================
+# GLOBAL MARKET
 # ==============================
 
 def global_market_status():
 
     try:
 
-        dow = yf.download("^DJI", period="2d", interval="1d", progress=False)
-        nasdaq = yf.download("^IXIC", period="2d", interval="1d", progress=False)
-        sp = yf.download("^GSPC", period="2d", interval="1d", progress=False)
-
-        nikkei = yf.download("^N225", period="2d", interval="1d", progress=False)
-        hang = yf.download("^HSI", period="2d", interval="1d", progress=False)
-        shanghai = yf.download("000001.SS", period="2d", interval="1d", progress=False)
-
-        for df in [dow, nasdaq, sp, nikkei, hang, shanghai]:
-            if hasattr(df.columns, "levels"):
-                df.columns = df.columns.get_level_values(0)
-
-        if len(dow) < 2 or len(nasdaq) < 2 or len(sp) < 2:
-            print("Market data unavailable")
-            return
-
-        dow_value = round(dow["Close"].iloc[-1],2)
-        dow_change = round(dow["Close"].iloc[-1] - dow["Close"].iloc[-2],2)
-
-        nasdaq_value = round(nasdaq["Close"].iloc[-1],2)
-        nasdaq_change = round(nasdaq["Close"].iloc[-1] - nasdaq["Close"].iloc[-2],2)
-
-        sp_value = round(sp["Close"].iloc[-1],2)
-        sp_change = round(sp["Close"].iloc[-1] - sp["Close"].iloc[-2],2)
-
-        nikkei_value = round(nikkei["Close"].iloc[-1],2)
-        nikkei_change = round(nikkei["Close"].iloc[-1] - nikkei["Close"].iloc[-2],2)
-
-        hang_value = round(hang["Close"].iloc[-1],2)
-        hang_change = round(hang["Close"].iloc[-1] - hang["Close"].iloc[-2],2)
-
-        shanghai_value = round(shanghai["Close"].iloc[-1],2)
-        shanghai_change = round(shanghai["Close"].iloc[-1] - shanghai["Close"].iloc[-2],2)
-
-        dow_emoji = "🟢" if dow_change > 0 else "🔴"
-        nasdaq_emoji = "🟢" if nasdaq_change > 0 else "🔴"
-        sp_emoji = "🟢" if sp_change > 0 else "🔴"
-
-        nikkei_emoji = "🟢" if nikkei_change > 0 else "🔴"
-        hang_emoji = "🟢" if hang_change > 0 else "🔴"
-        shanghai_emoji = "🟢" if shanghai_change > 0 else "🔴"
-
-        send(f"""
-🌍 GLOBAL MARKET UPDATE
-
-🇺🇸 US MARKETS
-Dow Jones : {dow_value} {dow_emoji} ({dow_change})
-Nasdaq : {nasdaq_value} {nasdaq_emoji} ({nasdaq_change})
-S&P 500 : {sp_value} {sp_emoji} ({sp_change})
-
-🌏 ASIAN MARKETS
-Nikkei : {nikkei_value} {nikkei_emoji} ({nikkei_change})
-Hang Seng : {hang_value} {hang_emoji} ({hang_change})
-Shanghai : {shanghai_value} {shanghai_emoji} ({shanghai_change})
-""")
-
-    except Exception as e:
-        print("Global Market Error:", e)
-
-
-# ==============================
-# EUROPE MARKET OPEN
-# ==============================
-
-def europe_market_status():
-
-    try:
-
-        ftse = yf.download("^FTSE", period="2d", interval="1d", progress=False)
-        dax = yf.download("^GDAXI", period="2d", interval="1d", progress=False)
-        cac = yf.download("^FCHI", period="2d", interval="1d", progress=False)
-
-        for df in [ftse, dax, cac]:
-            if hasattr(df.columns, "levels"):
-                df.columns = df.columns.get_level_values(0)
-
-        if len(ftse) < 2 or len(dax) < 2 or len(cac) < 2:
-            return
-
-        ftse_value = round(ftse["Close"].iloc[-1],2)
-        ftse_change = round(ftse["Close"].iloc[-1] - ftse["Close"].iloc[-2],2)
-
-        dax_value = round(dax["Close"].iloc[-1],2)
-        dax_change = round(dax["Close"].iloc[-1] - dax["Close"].iloc[-2],2)
-
-        cac_value = round(cac["Close"].iloc[-1],2)
-        cac_change = round(cac["Close"].iloc[-1] - cac["Close"].iloc[-2],2)
-
-        ftse_emoji = "🟢" if ftse_change > 0 else "🔴"
-        dax_emoji = "🟢" if dax_change > 0 else "🔴"
-        cac_emoji = "🟢" if cac_change > 0 else "🔴"
-
-        send(f"""
-🇪🇺 EUROPE MARKET OPEN
-
-FTSE 100 : {ftse_value} {ftse_emoji} ({ftse_change})
-DAX : {dax_value} {dax_emoji} ({dax_change})
-CAC 40 : {cac_value} {cac_emoji} ({cac_change})
-""")
-
-    except Exception as e:
-        print("Europe Market Error:", e)
-
-
-# ==============================
-# US MARKET CLOSE UPDATE
-# ==============================
-
-def us_market_close():
-
-    try:
+        assets = global_assets_status()
 
         dow = yf.download("^DJI", period="2d", interval="1d", progress=False)
-        nasdaq = yf.download("^IXIC", period="2d", interval="1d", progress=False)
-        sp = yf.download("^GSPC", period="2d", interval="1d", progress=False)
+        nas = yf.download("^IXIC", period="2d", interval="1d", progress=False)
 
-        for df in [dow, nasdaq, sp]:
-            if hasattr(df.columns, "levels"):
+        for df in [dow,nas]:
+            if hasattr(df.columns,"levels"):
                 df.columns = df.columns.get_level_values(0)
 
-        if len(dow) < 2 or len(nasdaq) < 2 or len(sp) < 2:
-            return
-
-        dow_close = round(dow["Close"].iloc[-1],2)
-        dow_change = round(dow["Close"].iloc[-1] - dow["Close"].iloc[-2],2)
-
-        nasdaq_close = round(nasdaq["Close"].iloc[-1],2)
-        nasdaq_change = round(nasdaq["Close"].iloc[-1] - nasdaq["Close"].iloc[-2],2)
-
-        sp_close = round(sp["Close"].iloc[-1],2)
-        sp_change = round(sp["Close"].iloc[-1] - sp["Close"].iloc[-2],2)
-
-        dow_emoji = "🟢" if dow_change > 0 else "🔴"
-        nasdaq_emoji = "🟢" if nasdaq_change > 0 else "🔴"
-        sp_emoji = "🟢" if sp_change > 0 else "🔴"
+        d = round(dow["Close"].iloc[-1],2)
+        n = round(nas["Close"].iloc[-1],2)
 
         send(f"""
-🇺🇸 US MARKET CLOSE
+🌍 GLOBAL MARKET
 
-Dow Jones : {dow_close} {dow_emoji} ({dow_change})
-Nasdaq : {nasdaq_close} {nasdaq_emoji} ({nasdaq_change})
-S&P 500 : {sp_close} {sp_emoji} ({sp_change})
+{assets}
 
-Session Closed 📉
+🇺🇸 Dow : {d}
+🇺🇸 Nasdaq : {n}
 """)
 
-    except Exception as e:
-        print("US Market Close Error:", e)
+    except:
+        pass
 
 
 # ==============================
-# NASDAQ TEST MONITOR
+# INDIA CLOSE
 # ==============================
 
-nasdaq_base_price = None
-
-def nasdaq_monitor():
-
-    global nasdaq_base_price
+def india_market_close():
 
     try:
+        nifty = yf.download("^NSEI", period="2d", interval="1d", progress=False)
 
-        df = yf.download("^IXIC", interval="5m", period="1d", progress=False)
+        if hasattr(nifty.columns,"levels"):
+            nifty.columns = nifty.columns.get_level_values(0)
 
-        if hasattr(df.columns, "levels"):
-            df.columns = df.columns.get_level_values(0)
+        val = round(nifty["Close"].iloc[-1],2)
 
-        last = df.iloc[-1]
-        price = round(float(last["Close"]),2)
+        send(f"🇮🇳 INDIA CLOSE\nNIFTY : {val}")
 
-        print("NASDAQ :", price)
-
-        if nasdaq_base_price is None:
-
-            nasdaq_base_price = price
-
-            send(f"""
-📊 NASDAQ TEST MODE STARTED
-
-Base Price : {price}
-Monitoring 100 point movement
-""")
-
-            return
-
-        if price >= nasdaq_base_price + 100:
-
-            send(f"""
-🚀 NASDAQ UP 100 POINTS
-
-Price : {price}
-Previous Base : {nasdaq_base_price}
-""")
-
-            nasdaq_base_price = price
-
-        elif price <= nasdaq_base_price - 100:
-
-            send(f"""
-📉 NASDAQ DOWN 100 POINTS
-
-Price : {price}
-Previous Base : {nasdaq_base_price}
-""")
-
-            nasdaq_base_price = price
-
-    except Exception as e:
-        print("NASDAQ Error:", e)
+    except:
+        pass
 
 
 # ==============================
@@ -251,52 +228,43 @@ while True:
     try:
 
         now = datetime.now(ist)
-        current_time = now.time()
+        t = now.time()
         today = now.date()
 
         if last_reset_day != today:
-            morning_sent = False
-            europe_sent = False
-            us_close_sent = False
+            morning_sent = europe_sent = india_close_sent = False
             last_reset_day = today
 
-        market_open = datetime.strptime("09:15", "%H:%M").time()
-        market_close = datetime.strptime("15:30", "%H:%M").time()
+        market_open = datetime.strptime("09:15","%H:%M").time()
+        market_close = datetime.strptime("15:30","%H:%M").time()
 
-        us_close_time = datetime.strptime("02:10", "%H:%M").time()
-
-        if current_time >= us_close_time and not us_close_sent:
-            us_market_close()
-            us_close_sent = True
-
-        if current_time >= datetime.strptime("08:55", "%H:%M").time() and not morning_sent:
+        if t >= datetime.strptime("08:55","%H:%M").time() and not morning_sent:
             global_market_status()
             morning_sent = True
 
-        if current_time >= datetime.strptime("12:45", "%H:%M").time() and not europe_sent:
-            europe_market_status()
-            europe_sent = True
+        if t >= datetime.strptime("15:35","%H:%M").time() and not india_close_sent:
+            india_market_close()
+            india_close_sent = True
 
-        if market_open <= current_time <= market_close:
+        if market_open <= t <= market_close:
 
-            print("Market Open - Running Bot")
+            india_vix_monitor()
+            gold_silver_monitor()
+            currency_monitor()   # 🔥 NEW
             check_signals()
+
             time.sleep(60)
 
         else:
-
-            print("Market Closed - Running NASDAQ Test")
-            nasdaq_monitor()
             time.sleep(60)
 
     except Exception as e:
 
-        error_msg = str(e)
+        err = str(e)
+        print("Error:", err)
 
-        print("Error:", error_msg)
-
-        if error_msg != last_error:
-            send(f"⚠️ Bot Error\n{error_msg}")
-            last_error = error_msg
+        if err != last_error:
+            send(f"⚠️ Bot Error\n{err}")
+            last_error = err
 
         time.sleep(60)
