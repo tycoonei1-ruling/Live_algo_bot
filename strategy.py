@@ -92,7 +92,7 @@ def check_signals():
 
     now = datetime.now()
 
-    if last_status_time is None or (now - last_status_time).seconds > 3000:
+    if last_status_time is None or (now - last_status_time).seconds > 3600:
 
         trend, macd_trend, pivot_zone, bb_status = market_status(
             price, macd, signal, bb_upper, bb_lower,
