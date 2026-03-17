@@ -58,7 +58,7 @@ def global_assets_status():
 
         g_v, g_c = safe_fetch("GC=F")
         s_v, s_c = safe_fetch("SI=F")
-        d_v, d_c = safe_fetch("DX-Y.NYB")
+        d_v, d_c = safe_fetch("DX=F")
         i_v, i_c = safe_fetch("USDINR=X")
 
         def fmt(name, v, c):
@@ -151,7 +151,7 @@ def currency_monitor():
     global dxy_base, usdinr_base
 
     try:
-        dxy = yf.download("DX-Y.NYB", interval="5m", period="1d", progress=False)
+        dxy = yf.download("DX=F", interval="5m", period="1d", progress=False)
         inr = yf.download("USDINR=X", interval="5m", period="1d", progress=False)
 
         for df in [dxy,inr]:
