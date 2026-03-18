@@ -9,15 +9,15 @@ from tg_sender import send
 print("Trading Alert Bot Started")
 send("🚀 Bot Is Ready")
 
-# timezone
 ist = pytz.timezone("Asia/Kolkata")
 
 last_error = None
 
-# prevent duplicate alerts
+# flags
 morning_sent = False
 europe_sent = False
 india_close_sent = False
+us_close_sent = False
 last_reset_day = None
 
 # trackers
@@ -29,11 +29,10 @@ usdinr_base = None
 
 
 # ==============================
-# GLOBAL ASSETS SNAPSHOT
+# SAFE FETCH
 # ==============================
 
 def safe_fetch(symbol):
-
     try:
         df = yf.download(symbol, period="2d", interval="1d", progress=False)
 
@@ -47,27 +46,66 @@ def safe_fetch(symbol):
         chg = round(df["Close"].iloc[-1] - df["Close"].iloc[-2], 2)
 
         return val, chg
-
     except:
         return None, None
 
+# ==============================
+# OPENING BELL
+# ==============================
 
-def global_assets_status():
+def opening_bell():
 
     try:
 
-        g_v, g_c = safe_fetch("GC=F")
-        s_v, s_c = safe_fetch("SI=F")
-        d_v, d_c = safe_fetch("DX=F")
-        i_v, i_c = safe_fetch("USDINR=X")
+        assets = global_assets_status()
 
-        def fmt(name, v, c):
-            if v is None:
-                return f"{name} : NA"
-            e = "🟢" if c > 0 else "🔴"
-            return f"{name} : {v} {e} ({c})"
+        # US markets
+        dow_v, dow_c = safe_fetch("^DJI")
+        nas_v, nas_c = safe_fetch("^IXIC")
+        sp_v, sp_c = safe_fetch("^GSPC")
 
-        return f"""
+        # India VIX
+        vix_v, vix_c = safe_fetch("^INDIAVIX")
+
+        e = lambda x: "🟢" if x and x > 0 else "🔴"
+
+        send(f"""
+🔔 OPENING BELL (PRE-MARKET)
+
+{assets}
+
+📊 INDIA VIX : {vix_v} {e(vix_c)} ({vix_c})
+
+🇺🇸 US MARKETS
+Dow : {dow_v} {e(dow_c)} ({dow_c})
+Nasdaq : {nas_v} {e(nas_c)} ({nas_c})
+S&P 500 : {sp_v} {e(sp_c)} ({sp_c})
+
+Market Opening Soon 🚀
+""")
+
+    except Exception as e:
+        print("Opening Bell Error:", e)
+
+
+# ==============================
+# GLOBAL ASSETS
+# ==============================
+
+def global_assets_status():
+
+    g_v, g_c = safe_fetch("GC=F")
+    s_v, s_c = safe_fetch("SI=F")
+    d_v, d_c = safe_fetch("DX=F")      # FIXED
+    i_v, i_c = safe_fetch("USDINR=X")
+
+    def fmt(name, v, c):
+        if v is None:
+            return f"{name} : NA"
+        e = "🟢" if c > 0 else "🔴"
+        return f"{name} : {v} {e} ({c})"
+
+    return f"""
 🪙 {fmt("GOLD", g_v, g_c)}
 🪙 {fmt("SILVER", s_v, s_c)}
 
@@ -75,9 +113,6 @@ def global_assets_status():
 💱 {fmt("USDINR", i_v, i_c)}
 """
 
-    except Exception as e:
-        print("Global Assets Error:", e)
-        return "Global data unavailable"
 
 # ==============================
 # VIX ALERT
@@ -88,6 +123,7 @@ def india_vix_monitor():
 
     try:
         df = yf.download("^INDIAVIX", interval="5m", period="1d", progress=False)
+
         if hasattr(df.columns,"levels"):
             df.columns = df.columns.get_level_values(0)
 
@@ -185,31 +221,71 @@ def currency_monitor():
 
 def global_market_status():
 
-    try:
+    assets = global_assets_status()
 
-        assets = global_assets_status()
+    dow_v, dow_c = safe_fetch("^DJI")
+    nas_v, nas_c = safe_fetch("^IXIC")
 
-        dow = yf.download("^DJI", period="2d", interval="1d", progress=False)
-        nas = yf.download("^IXIC", period="2d", interval="1d", progress=False)
-
-        for df in [dow,nas]:
-            if hasattr(df.columns,"levels"):
-                df.columns = df.columns.get_level_values(0)
-
-        d = round(dow["Close"].iloc[-1],2)
-        n = round(nas["Close"].iloc[-1],2)
-
-        send(f"""
+    send(f"""
 🌍 GLOBAL MARKET
 
 {assets}
 
-🇺🇸 Dow : {d}
-🇺🇸 Nasdaq : {n}
+🇺🇸 Dow : {dow_v}
+🇺🇸 Nasdaq : {nas_v}
 """)
 
-    except:
-        pass
+
+# ==============================
+# EUROPE OPEN
+# ==============================
+
+def europe_market_status():
+
+    try:
+
+        ft_v, ft_c = safe_fetch("^FTSE")
+        dax_v, dax_c = safe_fetch("^GDAXI")
+        cac_v, cac_c = safe_fetch("^FCHI")
+
+        e = lambda x: "🟢" if x > 0 else "🔴"
+
+        send(f"""
+🇪🇺 EUROPE MARKET OPEN
+
+FTSE 100 : {ft_v} {e(ft_c)} ({ft_c})
+DAX : {dax_v} {e(dax_c)} ({dax_c})
+CAC 40 : {cac_v} {e(cac_c)} ({cac_c})
+""")
+
+    except Exception as e:
+        print("Europe Error:", e)
+
+
+# ==============================
+# US CLOSE
+# ==============================
+
+def us_market_close():
+
+    try:
+
+        d_v, d_c = safe_fetch("^DJI")
+        n_v, n_c = safe_fetch("^IXIC")
+        s_v, s_c = safe_fetch("^GSPC")
+
+        e = lambda x: "🟢" if x > 0 else "🔴"
+
+        send(f"""
+🇺🇸 US MARKET CLOSE
+
+Dow : {d_v} {e(d_c)} ({d_c})
+Nasdaq : {n_v} {e(n_c)} ({n_c})
+S&P 500 : {s_v} {e(s_c)} ({s_c})
+""")
+
+    except Exception as e:
+        print("US Close Error:", e)
 
 
 # ==============================
@@ -219,17 +295,24 @@ def global_market_status():
 def india_market_close():
 
     try:
-        nifty = yf.download("^NSEI", period="2d", interval="1d", progress=False)
 
-        if hasattr(nifty.columns,"levels"):
-            nifty.columns = nifty.columns.get_level_values(0)
+        n_v, n_c = safe_fetch("^NSEI")
+        g_v, _ = safe_fetch("GC=F")
+        s_v, _ = safe_fetch("SI=F")
 
-        val = round(nifty["Close"].iloc[-1],2)
+        e = "🟢" if n_c > 0 else "🔴"
 
-        send(f"🇮🇳 INDIA CLOSE\nNIFTY : {val}")
+        send(f"""
+🇮🇳 INDIA CLOSE
 
-    except:
-        pass
+NIFTY : {n_v} {e} ({n_c})
+
+🪙 GOLD : {g_v}
+🪙 SILVER : {s_v}
+""")
+
+    except Exception as e:
+        print("India Close Error:", e)
 
 
 # ==============================
@@ -245,25 +328,38 @@ while True:
         today = now.date()
 
         if last_reset_day != today:
-            morning_sent = europe_sent = india_close_sent = False
+            morning_sent = europe_sent = india_close_sent = us_close_sent = False
             last_reset_day = today
 
         market_open = datetime.strptime("09:15","%H:%M").time()
         market_close = datetime.strptime("15:30","%H:%M").time()
 
+        # MORNING
         if t >= datetime.strptime("08:55","%H:%M").time() and not morning_sent:
-            global_market_status()
+            opening_bell()
             morning_sent = True
 
+        # EUROPE
+        if t >= datetime.strptime("12:45","%H:%M").time() and t <= datetime.strptime("13:30","%H:%M").time() and not europe_sent:
+            europe_market_status()
+            europe_sent = True
+
+        # INDIA CLOSE
         if t >= datetime.strptime("15:35","%H:%M").time() and not india_close_sent:
             india_market_close()
             india_close_sent = True
 
+        # US CLOSE
+        if t >= datetime.strptime("02:10","%H:%M").time() and t <= datetime.strptime("03:00","%H:%M").time() and not us_close_sent:
+            us_market_close()
+            us_close_sent = True
+
+        # MARKET HOURS
         if market_open <= t <= market_close:
 
             india_vix_monitor()
             gold_silver_monitor()
-            currency_monitor()   # 🔥 NEW
+            currency_monitor()
             check_signals()
 
             time.sleep(60)
