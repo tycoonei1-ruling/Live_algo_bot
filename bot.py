@@ -296,19 +296,48 @@ def india_market_close():
 
     try:
 
-        n_v, n_c = safe_fetch("^NSEI")
-        g_v, _ = safe_fetch("GC=F")
-        s_v, _ = safe_fetch("SI=F")
+        # INDICES
+        n_v, n_c = safe_fetch("^NSEI")        # NIFTY 50 (Large Cap)
+        s_v, s_c = safe_fetch("^BSESN")       # SENSEX
 
-        e = "🟢" if n_c > 0 else "🔴"
+        mid_v, mid_c = safe_fetch("^NSEMDCP100")   # Midcap
+        small_v, small_c = safe_fetch("^NSESMCP100")  # Smallcap
+
+        # GOLD / SILVER
+        g_v, _ = safe_fetch("GC=F")
+        sil_v, _ = safe_fetch("SI=F")
+
+        # EMOJIS
+        def e(x):
+            return "🟢" if x and x > 0 else "🔴"
+
+        # PERFORMANCE CHECK
+        perf = {
+            "Large Cap (NIFTY)": n_c,
+            "Mid Cap": mid_c,
+            "Small Cap": small_c
+        }
+
+        # Remove None values safely
+        perf = {k: v for k, v in perf.items() if v is not None}
+
+        best = max(perf, key=perf.get) if perf else "NA"
 
         send(f"""
 🇮🇳 INDIA CLOSE
 
-NIFTY : {n_v} {e} ({n_c})
+NIFTY : {n_v} {e(n_c)} ({n_c})
+SENSEX : {s_v} {e(s_c)} ({s_c})
+
+📊 MARKET SEGMENTS
+Large Cap : {e(n_c)} ({n_c})
+Mid Cap : {e(mid_c)} ({mid_c})
+Small Cap : {e(small_c)} ({small_c})
+
+🏆 BEST PERFORMER : {best}
 
 🪙 GOLD : {g_v}
-🪙 SILVER : {s_v}
+🪙 SILVER : {sil_v}
 """)
 
     except Exception as e:
@@ -334,22 +363,22 @@ while True:
         market_open = datetime.strptime("09:15","%H:%M").time()
         market_close = datetime.strptime("15:30","%H:%M").time()
 
-        # MORNING
+        # MORNING BELL 8:55 AM
         if t >= datetime.strptime("08:55","%H:%M").time() and not morning_sent:
             opening_bell()
             morning_sent = True
 
-        # EUROPE
+        # EUROPE OPEN 12:45 PM
         if t >= datetime.strptime("12:45","%H:%M").time() and t <= datetime.strptime("13:30","%H:%M").time() and not europe_sent:
             europe_market_status()
             europe_sent = True
 
-        # INDIA CLOSE
+        # INDIA CLOSE 3:35 PM
         if t >= datetime.strptime("15:35","%H:%M").time() and not india_close_sent:
             india_market_close()
             india_close_sent = True
 
-        # US CLOSE
+        # US CLOSE 2:10 AM
         if t >= datetime.strptime("02:10","%H:%M").time() and t <= datetime.strptime("03:00","%H:%M").time() and not us_close_sent:
             us_market_close()
             us_close_sent = True
