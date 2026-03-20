@@ -55,14 +55,14 @@ import pandas as pd
 
 def calculate_camarilla():
 
-    df = yf.download("^NSEI", interval="1d", period="7d", progress=False)
+    df = yf.download("^NSEI", interval="15m", period="2d")
 
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
 
     df = df.dropna()
 
-    prev = df.iloc[-2]
+    prev = df.iloc[-2]  # last completed 15-min candle
 
     high = float(prev["High"])
     low = float(prev["Low"])
